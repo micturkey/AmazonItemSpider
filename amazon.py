@@ -9,7 +9,7 @@ cursor = db.cursor()
 # 获取列表页，iPod为关键词，自行修改
 my_headers = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/603.2.4 (KHTML, like Gecko) Version/10.1.1 Safari/603.2.4'}
-response = requests.get("https://www.amazon.com/s/ref=nb_sb_noss?url=search-alias%3Daps&field-keywords=iPhone",
+response = requests.get("https://www.amazon.com/s/ref=nb_sb_noss?url=search-alias%3Daps&field-keywords=iPod",
                         headers=my_headers)
 soup = BeautifulSoup(response.text, 'lxml')
 item = soup.select("[class=s-item-container]")
