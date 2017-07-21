@@ -7,7 +7,8 @@ db = pymysql.connect("localhost", "root", "123456", "amazon", charset="utf8")
 cursor = db.cursor()
 
 my_headers = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/603.2.4 (KHTML, like Gecko) Version/10.1.1 Safari/603.2.4'}
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/603.2.4 (KHTML, like Gecko)'
+                  ' Version/10.1.1 Safari/603.2.4'}
 
 
 # 获取某一项目细节
@@ -16,21 +17,58 @@ def get_detail(i):
     print(items[i]['url'])
     # 超时重连
     response_detail = get_response(items[i]['url'], 0)
-    while response_detail == None:
+    while response_detail is None:
         print(str(i) + "failed, retry")
         response_detail = get_response(items[i]['url'], 0)
     soup_detail = BeautifulSoup(response_detail.text, 'lxml')
+    tags_to_remove = ['script', 'style']
+    for tag in soup_detail.find_all(tags_to_remove):
+        tag.extract()
 
-    detail = soup_detail.find(id="feature-bullets")
+    # 顶部细节
+    feature = soup_detail.find(id="feature-bullets")
     string_throw = "This fits your\xa0.\n" \
                    "     Enter your model number\nto make sure this fits.\n" \
                    "    P.when(\"ReplacementPartsBulletLoader\").execute(function(module){ module.initializeDPX(); })"
+    string_throw2 = "This fits your\xa0.\n     Enter your model number\nto make sure this fits.\n \n"
+    feature_text = feature.get_text().replace("\t", "").replace("\n\n\n", "").replace("'", "\'"). \
+        replace(string_throw, "").replace(string_throw2, "").lstrip()
+
+    # From the manufacturer
+    manufacturer = soup_detail.find(text="From the manufacturer")
+    if manufacturer is not None:
+        manufacturer_text = manufacturer.parent.parent.get_text().replace("\t", "").replace("\n\n\n", "").replace("'",
+                                                                                                                  "\'")
+    else:
+        manufacturer_text = ""
+
+    # 中部Production Description
+    description = soup_detail.find(id="productDescription")
+    if description is not None:
+        description_txt = description.get_text()
+    else:
+        description_txt = ""
+
+    # 中部Product information
+    information = soup_detail.find(id="prodDetails")
+    if information is not None:
+        information_txt = information.get_text()
+    else:
+        information_txt = ""
+
+    # 中部Important information
+    important = soup_detail.find(id="important-information_feature_div")
+    if important is not None:
+        important_text = important.get_text()
+    else:
+        important_text = ""
+
+    detail_txt = feature_text + manufacturer_text + description_txt + information_txt + important_text
 
     # 多线程情况下的返回参数，因为python多线程不支持修改全局变量，所以绕了一绕
     x = {
         'id': i,
-        'detail': detail.get_text().replace("\t", "").replace("\n\n\n", "").replace("'", "\'").
-            replace(string_throw, "").lstrip()
+        'detail': detail_txt
     }
     print(str(i) + " finish")
     return x
@@ -56,10 +94,10 @@ def check_url(url):
     return url.split("/ref")[0]
 
 
-
 # 获取列表页，iPod为关键词，自行修改
 
 items = []
+
 
 def spider(page):
     url_str = "https://www.amazon.com/s/ref=nb_sb_noss?url=search-alias%3Daps&field-keywords="
@@ -67,7 +105,7 @@ def spider(page):
     # 超时重连
     print(url_str + key + "&page=" + str(page))
     response = get_response(url_str + key + "&page=" + str(page), 1)
-    while response == None:
+    while response is None:
         print("page" + str(page) + "failed, retry")
         response = get_response(url_str + key + "&page=" + str(page), 1)
 
@@ -78,14 +116,16 @@ def spider(page):
         x = i.find("a", "a-link-normal s-access-detail-page s-color-twister-title-link a-text-normal")
         # print(x.get("title"))
         url = check_url(x.get("href"))
-        try:
-            rank = i.find("a", "a-popover-trigger a-declarative").get_text().split()[0]
-        except:
-            print("this "+ url)
+        rank_tag = i.find("a", "a-popover-trigger a-declarative")
+
+        if rank_tag is not None:
+            rank = rank_tag.get_text().split()[0]
+        else:
             rank = 0
+
         img = i.find("img", "s-access-image cfMarker").get("src")
         price = i.find("span", "a-color-base sx-zero-spacing")
-        if price == None:
+        if price is None:
             price = i.find("span", "a-size-base a-color-base")
             price = price.get_text()
         else:
@@ -134,7 +174,9 @@ def spider(page):
     print(items)
     db.commit()
 
+
 # 多页面采集，python不支持多线程下嵌套的多线程（或许是我太垃圾 逃
 # 所以只能用循环一页一页搞了 被亚马逊查到也没辙了，可以改一下timeout看看
-for page in range(1,3):
+for page in range(1, 5):
     spider(page)
+    items = []
