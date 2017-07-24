@@ -45,21 +45,21 @@ def get_detail(i):
     # 中部Production Description
     description = soup_detail.find(id="productDescription")
     if description is not None:
-        description_txt = description.get_text()
+        description_txt = description.get_text().replace("'", "\'")
     else:
         description_txt = ""
 
     # 中部Product information
     information = soup_detail.find(id="prodDetails")
     if information is not None:
-        information_txt = information.get_text()
+        information_txt = information.get_text().replace("'", "\'")
     else:
         information_txt = ""
 
     # 中部Important information
     important = soup_detail.find(id="important-information_feature_div")
     if important is not None:
-        important_text = important.get_text()
+        important_text = important.get_text().replace("'", "\'")
     else:
         important_text = ""
 
@@ -94,14 +94,14 @@ def check_url(url):
     return url.split("/ref")[0]
 
 
-# 获取列表页，iPod为关键词，自行修改
+# 获取列表页，keyword为关键词，自行修改
 
 items = []
 
 
 def spider(page):
     url_str = "https://www.amazon.com/s/ref=nb_sb_noss?url=search-alias%3Daps&field-keywords="
-    key = "iPod"
+    key = "cellphone"
     # 超时重连
     print(url_str + key + "&page=" + str(page))
     response = get_response(url_str + key + "&page=" + str(page), 1)
@@ -114,6 +114,8 @@ def spider(page):
     # 主要爬虫部分
     for i in item:
         x = i.find("a", "a-link-normal s-access-detail-page s-color-twister-title-link a-text-normal")
+        if x is None:
+            continue
         # print(x.get("title"))
         url = check_url(x.get("href"))
         rank_tag = i.find("a", "a-popover-trigger a-declarative")
@@ -124,12 +126,19 @@ def spider(page):
             rank = 0
 
         img = i.find("img", "s-access-image cfMarker").get("src")
-        price = i.find("span", "a-color-base sx-zero-spacing")
-        if price is None:
-            price = i.find("span", "a-size-base a-color-base")
-            price = price.get_text()
+
+        price_tag = i.find("span", "a-color-base sx-zero-spacing")
+        if price_tag is None:
+            price_tag = i.find(text=re.compile(r"\$(\s\w+)?"))
+            if price_tag is None:
+                continue
+            price = price_tag.parent.get_text()
         else:
-            price = price.get("aria-label")
+            price = price_tag.get("aria-label")
+            price_split = price.split()
+            price = price_split[0]
+        price = price.replace(",", "")
+
         data = {
             'id': url.split("/")[5],
             'title': x.get("title"),
@@ -177,6 +186,6 @@ def spider(page):
 
 # 多页面采集，python不支持多线程下嵌套的多线程（或许是我太垃圾 逃
 # 所以只能用循环一页一页搞了 被亚马逊查到也没辙了，可以改一下timeout看看
-for page in range(1, 5):
+for page in range(1, 10):
     spider(page)
     items = []
