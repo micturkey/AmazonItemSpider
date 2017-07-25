@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 from multiprocessing import Pool
 import requests
 import pymysql
+import re
 
 db = pymysql.connect("localhost", "root", "123456", "amazon", charset="utf8")
 cursor = db.cursor()
